@@ -4,7 +4,6 @@ import tensorflow as tf
 from sklearn.model_selection import KFold
 import argparse
 import numpy as np
-from tqdm import tqdm
 
 from dataset.dataset import get_T1_dataset, get_T2_dataset, get_dataset_hdr
 from models.unet import Unet
@@ -41,14 +40,6 @@ def grad(model, inputs, targets, loss):
 
 # @tf.function
 def train_step(model, inputs, targets, loss_func, optimizer):
-    # predictions = model(inputs)
-    # def train_loss():
-    #     return loss_func(targets, predictions)
-    # train_loss = loss_func(targets, predictions)
-    # grads_and_vars = optimizer._compute_gradients(train_loss, model.trainable_variables)
-    # grads = optimizer.get_gradients(train_loss, model.trainable_variables)
-    # optimizer.apply_gradients(zip(grads, model.trainable_variables))
-    # optimizer.minimize(train_loss, model.trainable_variables)
     with tf.GradientTape() as tape:
         predictions = model(inputs)
         train_loss = loss_func(targets, predictions)
@@ -63,7 +54,6 @@ def train(fold, train_case_indexes, val_case_indexes, args):
         os.mkdir(log_dir)
 
     model = Unet(n_class=4)
-    # model.build(input_shape=(args.batch_size, 64, 64, 64, 1))
 
     # get loss and op
     loss_object = dice_loss
@@ -78,43 +68,11 @@ def train(fold, train_case_indexes, val_case_indexes, args):
     dice_2 = tf.keras.metrics.Mean(name='train_dice_2')
     dice_3 = tf.keras.metrics.Mean(name='train_dice_3')
 
-    # global_step = tf.train.get_or_create_global_step()
     step = 0
 
-    # val_loss = tf.keras.metrics.Mean(name='val_loss')
-    # val_iou_1 = tf.keras.metrics.MeanIoU(num_classes=2, name='val_iou_1')
-    # val_iou_2 = tf.keras.metrics.MeanIoU(num_classes=2, name='val_iou_2')
-    # val_iou_3 = tf.keras.metrics.MeanIoU(num_classes=2, name='val_iou_3')
-    # val_dice_1 = tf.keras.metrics.Mean(name='val_dice_1')
-    # val_dice_2 = tf.keras.metrics.Mean(name='val_dice_2')
-    # val_dice_3 = tf.keras.metrics.Mean(name='val_dice_3')
     record_loss, record_iou_1, record_iou_2, record_iou_3, record_dice_1, record_dice_2, record_dice_3 = 0,0,0,0,0,0,0
 
     summary_writer = tf.summary.create_file_writer(log_dir, model._graph)
-    # tf.contrib.summary.initialize(graph=tf.get_default_graph())
-
-
-    # # @tf.function
-    # def train_step(images, labels):
-    #     with tf.GradientTape() as tape:
-    #         predictions = model(images)
-    #         loss = loss_object(labels, predictions)
-    #     gradients = tape.gradient(loss, model.trainable_variables)
-    #     optimizer.apply_gradients(zip(gradients, model.trainable_variables))
-    #
-    #     train_loss(loss)
-    #     train_accuracy(labels, predictions)
-    #
-    # # @tf.function
-    # def val_step(images, labels):
-    #     predictions = model(images)
-    #     t_loss = loss_object(labels, predictions)
-    #
-    #     val_loss(t_loss)
-    #     val_accuracy(labels, predictions)
-
-    # train_dataset = get_T1_dataset(data_path=args.data_path, case_indexes=train_case_indexes, batch_size=args.batch_size)
-    # val_dataset = get_T1_dataset(data_path=args.data_path, case_indexes=val_case_indexes, batch_size=args.batch_size)
 
     train_dataset = get_dataset_hdr(args.data_path, case_indexes=train_case_indexes, batch_size=args.batch_size, is_training=True)
     val_dataset = get_dataset_hdr(args.data_path, case_indexes=val_case_indexes, batch_size=args.batch_size, is_training=False)
@@ -138,11 +96,7 @@ def train(fold, train_case_indexes, val_case_indexes, args):
         dice_2.reset_states()
         dice_3.reset_states()
         for images, labels in train_dataset:
-            # model.train_on_batch(images, labels)
-            # predictions = model(images)
-            # train_loss = loss_object(labels, predictions)
             with tf.GradientTape() as tape:
-                # tape.watch(model.trainable_variables)
                 predictions = model(images, training=True)
                 train_loss = loss_object(labels, predictions)
             gradients = tape.gradient(train_loss, model.trainable_variables)
@@ -174,8 +128,6 @@ def train(fold, train_case_indexes, val_case_indexes, args):
             tf.summary.scalar('train_dice_3', dice_3.result(), step=epoch)
             tf.summary.image('prediction', predictions[:, :, :, 32, :], step=epoch)
             tf.summary.image('label', labels[:, :, :, 32, :], step=epoch)
-        # with tf.Session() as sess:
-        #     sess.run([tf.contrib.summary.all_summary_ops()])
 
         # validation
         loss_metric.reset_states()
@@ -213,8 +165,6 @@ def train(fold, train_case_indexes, val_case_indexes, args):
             tf.summary.scalar('val_dice_3', dice_3.result(), step=epoch)
             tf.summary.image('val_prediction', predictions[:, :, :, 32, :], step=epoch)
             tf.summary.image('val_label', labels[:, :, :, 32, :], step=epoch)
-        # with tf.Session() as sess:
-        #     sess.run([tf.contrib.summary.all_summary_ops()])
 
         record_loss, record_iou_1, record_iou_2, record_iou_3, record_dice_1, record_dice_2, record_dice_3 = \
             loss_metric.result().numpy(), \

@@ -96,7 +96,3 @@ if __name__ == '__main__':
     for layer in model.layers:
         for weight in layer.weights:
             print(weight.name, weight.shape)
-
-    # from tensorflow.keras.utils import plot_model
-    # plot_model(model, to_file='model.png', show_shapes=True, show_layer_names=True)  # plot my model
-    # print(model)

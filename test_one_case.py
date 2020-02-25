@@ -1,16 +1,12 @@
 import os
 
 import tensorflow as tf
-from sklearn.model_selection import KFold
 import argparse
 import numpy as np
 from tqdm import tqdm
 from medpy.io import load, save
 import math
-import cv2
-from PIL import Image
 
-from dataset.dataset import get_dataset_hdr
 from models.unet import Unet
 
 
@@ -38,8 +34,6 @@ def get_case(data_path, case, mode='T1', patch_size=64):
     img = np.zeros(shape=(img_image.shape[0]+top+bottom, img_image.shape[1]+left+right, img_image.shape[2]+shallow+deep),
                    dtype=np.float32)
     img[top: top+img_image.shape[0], left: left+img_image.shape[1], shallow: shallow+img_image.shape[2]] = img_image[:, :, :]
-    # img = cv2.copyMakeBorder(img_image, top, bottom, left, right, cv2.BORDER_CONSTANT, value=[0])
-    # patch_all = np.zeros(shape=(math.ceil(row / step) * math.ceil(col / step), patch_size, patch_size, 4), dtype=np.float16)
     y = []
     for i in range(math.ceil(row / step)):
         for j in range(math.ceil(col / step)):
@@ -50,14 +44,9 @@ def get_case(data_path, case, mode='T1', patch_size=64):
 
                 y_tmp = np.array(img[i * step:i * step + patch_size, j * step:j * step + patch_size, k * step: k * step + patch_size])
                 y.append(np.array(y_tmp)[:, :, :, None])
-            # patch_all[i * math.ceil(col / step) + j, :, :, :] = img[i * step:i * step + patch_size, j * step:j * step + patch_size, :] / 255.
-            # yield np.array([img[i * step:i * step + patch_size, j * step:j * step + patch_size, 0:3] / 255.])
 
-    # print('test')
-    # patch_all = np.array(patch_all)
     if len(y) != 0:
         yield np.array(y)
-    # return patch_all, math.ceil(row / step), math.ceil(col / step)
 
 
 def test_one_case(args, case):
@@ -78,7 +67,6 @@ def test_one_case(args, case):
     for patches in tqdm(f):
         labels = model(patches)
         labels = np.argmax(labels, axis=-1)
-        # labels = patches[..., 0]
         b, h, w, d = labels.shape
         for label in labels:
             h1, w1, d1 = img_y[i*step: (i+1)*step, j*step: (j+1)*step, k*step: (k+1)*step].shape
